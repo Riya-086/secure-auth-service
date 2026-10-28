@@ -7,3 +7,13 @@ spring:
 
 server:
   port: ${PORT:8080}
+
+auth:
+  jwt:
+    # HMAC-SHA256 signing key, at least 32 bytes. No default: startup fails if it is missing.
+    secret: ${JWT_SECRET}
+    issuer: secure-auth-service
+    access-token-ttl: 15m
+  refresh:
+    # Absolute lifetime of a login session. Rotation never extends it.
+    session-ttl: 30d

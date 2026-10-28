@@ -20,5 +20,7 @@ public abstract class MongoIntegrationTest {
     @DynamicPropertySource
     static void mongoProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.data.mongodb.uri", () -> MONGO.getConnectionString() + "/authservice-test");
+        // Test-only key. Production reads JWT_SECRET from the environment.
+        registry.add("auth.jwt.secret", () -> "test-only-signing-key-at-least-32-bytes-long");
     }
 }
