@@ -17,3 +17,5 @@ auth:
   refresh:
     # Absolute lifetime of a login session. Rotation never extends it.
     session-ttl: 30d
+    # How long after rotation a reused token is treated as a concurrent retry instead of a replay.
+    grace-window: 10s

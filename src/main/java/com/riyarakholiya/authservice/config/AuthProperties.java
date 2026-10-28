@@ -18,6 +18,6 @@ public record AuthProperties(@Valid @NotNull Jwt jwt, @Valid @NotNull Refresh re
             @NotNull Duration accessTokenTtl) {
     }
 
-    public record Refresh(@NotNull Duration sessionTtl) {
+    public record Refresh(@NotNull Duration sessionTtl, @NotNull Duration graceWindow) {
     }
 }

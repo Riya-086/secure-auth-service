@@ -9,6 +9,7 @@ import com.riyarakholiya.authservice.user.UserRepository;
 import com.riyarakholiya.authservice.web.AuthException;
 import com.riyarakholiya.authservice.web.ErrorCode;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
@@ -72,6 +73,46 @@ class AuthService {
         refreshTokens.insert(RefreshTokenDocument.active(RefreshTokens.hash(refreshToken),
                 UUID.randomUUID().toString(), userId, now, now.plus(refreshProperties.sessionTtl())));
         return new AuthTokens(accessTokens.issue(userId), accessTokens.ttl().toSeconds(), refreshToken);
+    }
+
+    /**
+     * Single-use rotation. The presented token is exchanged for a successor, and the old token can
+     * never be used to rotate again. The compare-and-set in {@code claimActive} lets exactly one
+     * concurrent caller win. Everyone else falls through to {@link #handleNonActive}.
+     */
+    AuthTokens refresh(String presentedToken) {
+        if (presentedToken == null || presentedToken.isBlank()) {
+            throw new AuthException(ErrorCode.REFRESH_TOKEN_MISSING);
+        }
+        String hash = RefreshTokens.hash(presentedToken);
+        Instant now = clock.instant();
+
+        Optional<RefreshTokenDocument> claimed = refreshTokens.claimActive(hash, now);
+        if (claimed.isEmpty()) {
+            return handleNonActive(hash, now);
+        }
+        RefreshTokenDocument consumed = claimed.get();
+        String successor = RefreshTokens.generate();
+        refreshTokens.insert(RefreshTokenDocument.active(RefreshTokens.hash(successor), consumed.familyId(),
+                consumed.userId(), now, consumed.sessionExpiresAt()));
+        return new AuthTokens(accessTokens.issue(consumed.userId()), accessTokens.ttl().toSeconds(), successor);
+    }
+
+    private AuthTokens handleNonActive(String hash, Instant now) {
+        RefreshTokenDocument token = refreshTokens.findByHash(hash)
+                .orElseThrow(() -> new AuthException(ErrorCode.REFRESH_TOKEN_INVALID));
+        if (!token.sessionExpiresAt().isAfter(now) || token.status() != TokenStatus.ROTATED) {
+            // Expired, revoked, or unknown: nothing to recover.
+            throw new AuthException(ErrorCode.REFRESH_TOKEN_INVALID);
+        }
+        if (Duration.between(token.rotatedAt(), now).compareTo(refreshProperties.graceWindow()) <= 0) {
+            // A concurrent retry, such as a second tab still holding the old cookie. The browser already
+            // has the successor from the first response, so only a new access token is returned.
+            return new AuthTokens(accessTokens.issue(token.userId()), accessTokens.ttl().toSeconds(), null);
+        }
+        // A rotated token used after the grace window means the token leaked. Revoke the whole family.
+        refreshTokens.revokeFamily(token.familyId());
+        throw new AuthException(ErrorCode.REFRESH_TOKEN_REUSED);
     }
 
     private static String normalizeEmail(String email) {

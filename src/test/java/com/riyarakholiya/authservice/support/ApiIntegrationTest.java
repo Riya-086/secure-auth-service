@@ -6,6 +6,7 @@ import com.riyarakholiya.authservice.auth.dto.RegisterRequest;
 import com.riyarakholiya.authservice.auth.dto.TokenResponse;
 import com.riyarakholiya.authservice.auth.dto.UserResponse;
 import com.riyarakholiya.authservice.user.UserDocument;
+import com.riyarakholiya.authservice.web.ApiError;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -31,6 +32,9 @@ public abstract class ApiIntegrationTest extends MongoIntegrationTest {
     @Autowired
     protected MongoTemplate mongo;
 
+    @Autowired
+    protected MutableClock clock;
+
     @BeforeEach
     void clearDatabase() {
         mongo.remove(new Query(), UserDocument.class);
@@ -46,9 +50,17 @@ public abstract class ApiIntegrationTest extends MongoIntegrationTest {
     }
 
     protected ResponseEntity<TokenResponse> refresh(String refreshToken) {
+        return http.exchange("/auth/refresh", HttpMethod.POST, refreshRequest(refreshToken), TokenResponse.class);
+    }
+
+    protected ResponseEntity<ApiError> refreshRejected(String refreshToken) {
+        return http.exchange("/auth/refresh", HttpMethod.POST, refreshRequest(refreshToken), ApiError.class);
+    }
+
+    private static HttpEntity<Void> refreshRequest(String refreshToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.COOKIE, REFRESH_COOKIE + "=" + refreshToken);
-        return http.exchange("/auth/refresh", HttpMethod.POST, new HttpEntity<>(headers), TokenResponse.class);
+        return new HttpEntity<>(headers);
     }
 
     /** Pulls the raw refresh token out of a Set-Cookie header, or returns null if the response set none. */
