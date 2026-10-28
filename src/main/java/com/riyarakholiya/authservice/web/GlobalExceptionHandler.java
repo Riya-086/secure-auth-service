@@ -1,6 +1,8 @@
 package com.riyarakholiya.authservice.web;
 
+import com.riyarakholiya.authservice.ratelimit.RateLimitExceededException;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,6 +15,13 @@ class GlobalExceptionHandler {
     @ExceptionHandler(AuthException.class)
     ResponseEntity<ApiError> handleAuthException(AuthException ex) {
         return error(ex.getCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    ResponseEntity<ApiError> handleRateLimited(RateLimitExceededException ex) {
+        return ResponseEntity.status(ErrorCode.RATE_LIMITED.getStatus())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(new ApiError(ErrorCode.RATE_LIMITED, ErrorCode.RATE_LIMITED.getDefaultMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

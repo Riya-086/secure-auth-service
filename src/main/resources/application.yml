@@ -19,3 +19,11 @@ auth:
     session-ttl: 30d
     # How long after rotation a reused token is treated as a concurrent retry instead of a replay.
     grace-window: 10s
+  rate-limit:
+    # Token buckets for POST /auth/refresh. Capacity is the burst size; refill is the steady rate.
+    refresh-per-user:
+      capacity: 5
+      refill-per-minute: 5
+    refresh-per-ip:
+      capacity: 30
+      refill-per-minute: 30

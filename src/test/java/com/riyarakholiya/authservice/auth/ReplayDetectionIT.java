@@ -14,7 +14,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,
+        properties = {ApiIntegrationTest.HIGH_USER_LIMIT, ApiIntegrationTest.HIGH_IP_LIMIT})
 @Import(TestClockConfig.class)
 class ReplayDetectionIT extends ApiIntegrationTest {
 

@@ -4,6 +4,7 @@ import com.riyarakholiya.authservice.auth.dto.LoginRequest;
 import com.riyarakholiya.authservice.auth.dto.RegisterRequest;
 import com.riyarakholiya.authservice.auth.dto.UserResponse;
 import com.riyarakholiya.authservice.config.AuthProperties;
+import com.riyarakholiya.authservice.ratelimit.RateLimiter;
 import com.riyarakholiya.authservice.user.UserDocument;
 import com.riyarakholiya.authservice.user.UserRepository;
 import com.riyarakholiya.authservice.web.AuthException;
@@ -14,6 +15,7 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,17 +28,20 @@ class AuthService {
     private final RefreshTokenStore refreshTokens;
     private final AccessTokenIssuer accessTokens;
     private final AuthProperties.Refresh refreshProperties;
+    private final RateLimiter refreshPerUser;
     private final Clock clock;
     // Checked when the email is unknown, so an unknown email costs the same BCrypt time as a wrong password.
     private final String dummyPasswordHash;
 
     AuthService(UserRepository users, PasswordEncoder passwordEncoder, RefreshTokenStore refreshTokens,
-                AccessTokenIssuer accessTokens, AuthProperties properties, Clock clock) {
+                AccessTokenIssuer accessTokens, AuthProperties properties,
+                @Qualifier("refreshPerUserLimiter") RateLimiter refreshPerUser, Clock clock) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokens = refreshTokens;
         this.accessTokens = accessTokens;
         this.refreshProperties = properties.refresh();
+        this.refreshPerUser = refreshPerUser;
         this.clock = clock;
         this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
@@ -86,6 +91,9 @@ class AuthService {
         }
         String hash = RefreshTokens.hash(presentedToken);
         Instant now = clock.instant();
+
+        // The per-user limit runs before the claim, so a rejected request never rotates the token.
+        refreshTokens.findByHash(hash).ifPresent(token -> refreshPerUser.acquire(token.userId()));
 
         Optional<RefreshTokenDocument> claimed = refreshTokens.claimActive(hash, now);
         if (claimed.isEmpty()) {

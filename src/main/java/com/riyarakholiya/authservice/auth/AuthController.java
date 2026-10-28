@@ -5,8 +5,11 @@ import com.riyarakholiya.authservice.auth.dto.RegisterRequest;
 import com.riyarakholiya.authservice.auth.dto.TokenResponse;
 import com.riyarakholiya.authservice.auth.dto.UserResponse;
 import com.riyarakholiya.authservice.config.AuthProperties;
+import com.riyarakholiya.authservice.ratelimit.RateLimiter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.Duration;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -25,10 +28,13 @@ class AuthController {
     private static final String COOKIE_PATH = "/auth";
 
     private final AuthService auth;
+    private final RateLimiter refreshPerIp;
     private final Duration sessionTtl;
 
-    AuthController(AuthService auth, AuthProperties properties) {
+    AuthController(AuthService auth, @Qualifier("refreshPerIpLimiter") RateLimiter refreshPerIp,
+                   AuthProperties properties) {
         this.auth = auth;
+        this.refreshPerIp = refreshPerIp;
         this.sessionTtl = properties.refresh().sessionTtl();
     }
 
@@ -43,7 +49,11 @@ class AuthController {
     }
 
     @PostMapping("/refresh")
-    ResponseEntity<TokenResponse> refresh(@CookieValue(name = REFRESH_COOKIE, required = false) String refreshToken) {
+    ResponseEntity<TokenResponse> refresh(
+            @CookieValue(name = REFRESH_COOKIE, required = false) String refreshToken,
+            HttpServletRequest request) {
+        // The per-IP limit runs before any token lookup, so guessing tokens from one address is limited too.
+        refreshPerIp.acquire(request.getRemoteAddr());
         return tokenResponse(auth.refresh(refreshToken));
     }
 

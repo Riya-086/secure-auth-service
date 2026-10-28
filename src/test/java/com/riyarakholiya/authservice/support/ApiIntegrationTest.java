@@ -26,6 +26,10 @@ public abstract class ApiIntegrationTest extends MongoIntegrationTest {
     protected static final String PASSWORD = "correct-horse-battery";
     private static final String REFRESH_COOKIE = "refresh_token";
 
+    /** Raises the limits so a test can refresh many times without tripping them. Used in @SpringBootTest. */
+    public static final String HIGH_USER_LIMIT = "auth.rate-limit.refresh-per-user.capacity=100";
+    public static final String HIGH_IP_LIMIT = "auth.rate-limit.refresh-per-ip.capacity=1000";
+
     @Autowired
     protected TestRestTemplate http;
 
