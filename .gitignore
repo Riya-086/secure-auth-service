@@ -1,0 +1,23 @@
+# Maven
+target/
+*.jar.original
+.flattened-pom.xml
+
+# Compiled and build output
+*.class
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local secrets
+.env

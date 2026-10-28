@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: secure-auth-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/authservice}
+
+server:
+  port: ${PORT:8080}
