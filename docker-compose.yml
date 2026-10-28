@@ -1,0 +1,22 @@
+services:
+  mongo:
+    image: mongo:7.0
+    volumes:
+      - mongo-data:/data/db
+    # MongoDB is not published to the host. Only the app container can reach it.
+
+  app:
+    build: .
+    depends_on:
+      - mongo
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/authservice
+      # Local demo default only. Export your own JWT_SECRET (32+ characters) for anything shared.
+      JWT_SECRET: ${JWT_SECRET:-local-demo-only-signing-key-change-me}
+    ports:
+      - "8080:8080"
+    # Mongo may still be starting when the app first connects, so retry on failure.
+    restart: on-failure
+
+volumes:
+  mongo-data:
