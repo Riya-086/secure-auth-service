@@ -106,6 +106,15 @@ class AuthService {
         return new AuthTokens(accessTokens.issue(consumed.userId()), accessTokens.ttl().toSeconds(), successor);
     }
 
+    /** Revokes the whole family the token belongs to. Idempotent: a missing or unknown token is a no-op. */
+    void logout(String presentedToken) {
+        if (presentedToken == null || presentedToken.isBlank()) {
+            return;
+        }
+        refreshTokens.findByHash(RefreshTokens.hash(presentedToken))
+                .ifPresent(token -> refreshTokens.revokeFamily(token.familyId()));
+    }
+
     private AuthTokens handleNonActive(String hash, Instant now) {
         RefreshTokenDocument token = refreshTokens.findByHash(hash)
                 .orElseThrow(() -> new AuthException(ErrorCode.REFRESH_TOKEN_INVALID));

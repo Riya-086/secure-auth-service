@@ -57,21 +57,30 @@ class AuthController {
         return tokenResponse(auth.refresh(refreshToken));
     }
 
+    @PostMapping("/logout")
+    ResponseEntity<Void> logout(@CookieValue(name = REFRESH_COOKIE, required = false) String refreshToken) {
+        auth.logout(refreshToken);
+        // Max-Age=0 tells the browser to delete the cookie now.
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie("", Duration.ZERO).toString())
+                .build();
+    }
+
     private ResponseEntity<TokenResponse> tokenResponse(AuthTokens tokens) {
         ResponseEntity.BodyBuilder response = ResponseEntity.ok();
         if (tokens.refreshToken() != null) {
-            response.header(HttpHeaders.SET_COOKIE, refreshCookie(tokens.refreshToken()).toString());
+            response.header(HttpHeaders.SET_COOKIE, refreshCookie(tokens.refreshToken(), sessionTtl).toString());
         }
         return response.body(new TokenResponse(tokens.accessToken(), "Bearer", tokens.expiresIn()));
     }
 
-    private ResponseCookie refreshCookie(String value) {
+    private static ResponseCookie refreshCookie(String value, Duration maxAge) {
         return ResponseCookie.from(REFRESH_COOKIE, value)
                 .httpOnly(true)
                 .secure(true)
                 .sameSite("Strict")
                 .path(COOKIE_PATH)
-                .maxAge(sessionTtl)
+                .maxAge(maxAge)
                 .build();
     }
 }

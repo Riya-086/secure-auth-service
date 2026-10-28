@@ -61,6 +61,10 @@ public abstract class ApiIntegrationTest extends MongoIntegrationTest {
         return http.exchange("/auth/refresh", HttpMethod.POST, refreshRequest(refreshToken), ApiError.class);
     }
 
+    protected ResponseEntity<Void> logout(String refreshToken) {
+        return http.exchange("/auth/logout", HttpMethod.POST, refreshRequest(refreshToken), Void.class);
+    }
+
     private static HttpEntity<Void> refreshRequest(String refreshToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.COOKIE, REFRESH_COOKIE + "=" + refreshToken);
